@@ -6,9 +6,6 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from oauth2client import file, client, tools
-from apiclient import errors, discovery
-from httplib2 import Http
 from typing import *
 from pprint import pprint
 import traceback

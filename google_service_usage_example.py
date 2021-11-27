@@ -2,7 +2,7 @@ from google_service import GService, df_to_value_range, numeric_col_to_letter_co
 import pandas as pd
 
 # Testing sheet: https://docs.google.com/spreadsheets/d/1CH5nkNA5-zeeA3wYuU0WRF6Fg4zxg2iJoL3Ti_HGbXc/
-gsheet_id = '1CH5nkNA5-zeeA3wYuU0WRF6Fg4zxg2iJoL3Ti_HGbXc' 
+gsheet_id = '1CH5nkNA5-zeeA3wYuU0WRF6Fg4zxg2iJoL3Ti_HGbXc'
 
 g_service = GService() # Initialization step, only needs to be done once
 
