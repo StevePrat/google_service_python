@@ -1,31 +1,37 @@
 # -*- coding: utf-8 -*-
 
+from googleapiclient.http import MediaFileUpload
 import pandas as pd
 import os
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from oauth2client import file, client, tools
+from apiclient import errors, discovery
+from httplib2 import Http
 from typing import *
 from pprint import pprint
 import traceback
 import string
 import getpass
 
-HOME_PATH = '/ldap_home/{}/daily_chat_spam/'.format(getpass.getuser())
+HOME_PATH = '/ldap_home/{}/chat_keywords_screening/keyword-screening/'.format(getpass.getuser())
 TOKEN_PATH = HOME_PATH + 'token.json'
 CREDENTIAL_PATH = HOME_PATH + 'credentials.json'
-SCOPES=['https://www.googleapis.com/auth/spreadsheets']
+SCOPES=['https://www.googleapis.com/auth/spreadsheets','https://mail.google.com/','https://www.googleapis.com/auth/drive']
 
 assert os.path.exists(TOKEN_PATH), "could not find %s" % (TOKEN_PATH)
 assert os.path.exists(CREDENTIAL_PATH), "could not find %s" % (CREDENTIAL_PATH)
 
 class GService:
     sheet_service = None
+    mail_service = None
+    drive_service = None
 
     def __init__(self) -> None:
         """
-        Service Provider Object for Google Sheet
+        Service Provider Object for Google Sheet, Drive, and Mail
         """
         creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
         if not creds or not creds.valid:
@@ -38,6 +44,8 @@ class GService:
             with open(TOKEN_PATH, 'w') as token:
                 token.write(creds.to_json())
         self.sheet_service = build('sheets', 'v4', credentials=creds)
+        self.mail_service = build('gmail', 'v1', credentials=creds)
+        self.drive_service = build('drive', 'v3', credentials=creds)
 
     def add_dropdown_validation(
         self,
@@ -215,7 +223,7 @@ class GService:
 
         return response
 
-    def append_google_sheet(self, gsheet_id: str, cell_range: str, values: List[List[Union[str,int]]], insert_new_row: bool=False) -> dict:
+    def append_google_sheet(self, gsheet_id: str, cell_range: str, values: List[List[Union[str,int]]], insert_new_row: bool=False, input_option: str = 'USER_ENTERED') -> dict:
         body = {'values':values}
         service = self.sheet_service
         
@@ -225,7 +233,7 @@ class GService:
             insert_data_option = 'OVERWRITE'
         
         result = service.spreadsheets().values() \
-            .append(spreadsheetId=gsheet_id, range=cell_range, insertDataOption=insert_data_option, valueInputOption='USER_ENTERED', body=body) \
+            .append(spreadsheetId=gsheet_id, range=cell_range, insertDataOption=insert_data_option, valueInputOption=input_option, body=body) \
             .execute()
         pprint(result)
 
@@ -343,6 +351,48 @@ class GService:
         grid_properties = [p.get('properties').get('gridProperties') for p in properties if p.get('properties').get('title') == sheet_name][0]
         row_count, column_count = grid_properties.get('rowCount'), grid_properties.get('columnCount')
         return row_count, column_count
+    
+    def create_folder(self, folder_name: str, parent_folder_id: str = None) -> dict:
+        service = self.drive_service
+        
+        if parent_folder_id is None:
+            metadata = {
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder'
+            }
+        else:
+            metadata = {
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder',
+                'parents': [parent_folder_id]
+            }
+
+        folder = service.files().create(
+            body=metadata,
+            fields='id'
+        ).execute()
+
+        print('Folder ID:', folder.get('id'))
+        return folder
+    
+    def upload_file(self, local_file_path: str, gdrive_file_name: str, parent_gdrive_folder_id: str = None, file_type: str = None, google_docs_type: str = None) -> dict:
+        service = self.drive_service
+
+        metadata = {'name': gdrive_file_name}
+        if parent_gdrive_folder_id is not None:
+            metadata.update({'parents': [parent_gdrive_folder_id]})
+        if google_docs_type is not None:
+            metadata.update({'mimeType': google_docs_type})
+        
+        media = MediaFileUpload(local_file_path, mimetype=file_type)
+        gdrive_file = service.files().create(
+            body=metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
+
+        print('File ID:', gdrive_file.get('id'))
+        return gdrive_file
 
 def df_to_value_range(df: pd.DataFrame, include_header=True) -> List[List[str]]:
     df.fillna('', inplace=True)
