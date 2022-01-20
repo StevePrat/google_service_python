@@ -395,7 +395,23 @@ class GService:
         print('File ID:', gdrive_file.get('id'))
         return gdrive_file
     
-    def list_files(self, gdrive_folder_id: str) -> list:
+    def create_file(self, gdrive_file_name: str, parent_gdrive_folder_id: str, google_docs_type: str = None) -> dict:
+        service = self.drive_service
+        metadata = {
+            'name': gdrive_file_name,
+            'parents': [parent_gdrive_folder_id],
+            'mimeType': google_docs_type
+        }
+
+        gdrive_file = service.files().create(
+            body=metadata,
+            fields='id'
+        ).execute()
+
+        print('File ID:', gdrive_file.get('id'))
+        return gdrive_file
+
+    def list_files(self, gdrive_folder_id: str) -> List[dict]:
         service = self.drive_service
         response = service.files().list(
             q="'{}' in parents".format(gdrive_folder_id)
@@ -430,5 +446,5 @@ def numeric_col_to_letter_col(col_index: int):
 
 if __name__ == "__main__":
     gs = GService()
-    g_files = gs.list_files('1OyGEzGwnwsWdvQM9SlDkMHOnLnahpy_y')
+    g_files = gs.list_files('1XMOvZNlUMGPWPfMC_oW31g1kgbI-Ox86')
     print(g_files)
